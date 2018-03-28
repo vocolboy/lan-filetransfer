@@ -1,0 +1,81 @@
+#!/usr/bin/env php
+<?php
+    check_argv($argv);
+
+    $ip   = get_local_ip();
+    $port = get_port($argv);
+
+    /**
+     * find Wi-Fi network address
+     * @return string
+     */
+    function get_local_ip()
+    {
+        $sock = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
+        socket_connect($sock, "8.8.8.8", 53);
+        socket_getsockname($sock, $name); // $name passed by reference
+
+        return $name;
+    }
+
+    /**
+     * parse & validator argv
+     * @param $argv
+     */
+    function check_argv($argv)
+    {
+        if (!isset($argv[1])) {
+            echo "\e[00;31m Not enough arguments (missing: \"filePath\"). \33[0m";
+            exit;
+        }
+
+        if (in_array($argv[1], ["-h", "--help"])) {
+            # Usage
+            echo sprintf("\33[01;33m Usage:%s \33[0m", PHP_EOL);
+            echo sprintf("\t transfer [filePath] [options] %s", PHP_EOL);
+
+            # Arguments
+            echo sprintf("\33[01;33m Arguments:%s \33[0m", PHP_EOL);
+            echo sprintf("\t\e[01;32m filePath \33[0m\t Your file path like \"/tmp/file.txt\" %s", PHP_EOL);
+
+            # Options
+            echo sprintf("\33[01;33m Options:%s \33[0m", PHP_EOL);
+            echo sprintf("\t\33[01;32m -h, --help \33[0m\t Display this help message %s", PHP_EOL);
+            echo sprintf("\t\33[01;32m --port[=PORT] \33[0m\t The port to serve the application on. [default: 6666] %s", PHP_EOL);
+            exit;
+        }
+
+        if (!file_exists($argv[1])) {
+            echo "File Doesn't Exists";
+            exit;
+        } else {
+            putenv(sprintf("FILE_PATH=%s", $argv[1]));
+        };
+    }
+
+    function get_port($argv)
+    {
+        foreach ($argv as $token) {
+            if (strpos($token, '--port') == 0) {
+                $name = substr($token, 2);
+
+                if (false !== $pos = strpos($name, '=')) {
+                    if (0 === strlen($value = substr($name, $pos + 1))) {
+                        // if no value after "=" then substr() returns "" since php7 only, false before
+                        // see http://php.net/manual/fr/migration70.incompatible.php#119151
+                        if (\PHP_VERSION_ID < 70000 && false === $value) {
+                            $value = '';
+                        }
+                        array_unshift($this->parsed, $value);
+                    }
+                    return $value;
+                }
+            };
+        }
+
+        # if doesn't find port option return default port
+        return 8080;
+    }
+
+    echo sprintf("\e[01;32m %s | File Transfer Start \33[0m : <http://%s:%s> %s", basename($argv[1]), $ip, $port, PHP_EOL);
+    passthru(sprintf("php -S %s:%s main.php", $ip, $port));
